@@ -12,8 +12,7 @@ var FolderZip = require('folder-zip');
 var base64 = require('file-base64');
 var superagent = require('superagent');
 var github = require('./github');
-
-
+var port = port = process.env.PORT || config.port
 
 const writeFilePromise = util.promisify(fs.write);
 const zip = new FolderZip();
@@ -29,8 +28,8 @@ app.use(session({
     saveUninitialized: false
 }));
 
-app.listen(8080, () => {
-    console.log('Listening on 8080');
+app.listen(port, () => {
+    console.log('Listening on ' + port);
 });
 
 app.get("/", (req, res) => {
