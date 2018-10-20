@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Rest API Generator</title>
+</head>
+
+<body>
+    <header>
+        <h1>Web API Generator</h1>
+        <p>
+            However, you can safely* generate a Web API's through your Mongo connection string and push all the code to
+            Github.
+            <br />
+            * nothing is 100% secure
+        </p>
+    </header>
+
+    <% if(token){ %>
+    <p>
+        Ola,
+        <%= name %>!
+    </p>
+    <form action="generate" method="POST">
+        <p>
+            <label for="appName">Name</label>
+            <input id="appName" type="text" name="appName" value="<%=appName%>">
+        </p>
+        <p>
+            <label>Connection String</label>
+            <input type="text" name="uri" value="<%=defaultConnectionString%>">
+        </p>
+        <p>
+            <label for="protect">Protect with token</label>
+            <input checked type="checkbox" name="protect">
+        </p>
+        <input type="submit" value="Generate RESTful API">
+        <input type="submit" formaction="generateGraphQL" value="Generate GraphQL API">
+    </form>
+    <% } else {  %>
+    <p>
+        <a id="loginBtn" href='https://github.com/login/oauth/authorize?client_id=<%=clientId%>&scope=repo'>Sign in
+            with Github</a>
+    </p>
+    <% } %>
+
+    <footer>
+        <p>
+            The first purpose of this webapp was to learn Laravel, React, Node and Mongo.
+        </p>
+    </footer>
+
+    <script src="client.js"></script>
+</body>
+
+</html>
