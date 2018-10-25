@@ -33,15 +33,14 @@ var server = app.listen(config.port, () => {
 });
 
 app.get("/", (req, res) => {
-    console.log("-------------------------> " + process.env.MY_VAR);
     res.render("index", { token: token, name: login, clientId: config.clientId, appName: config.appName, defaultConnectionString: config.defaultConnectionString })
 });
 
 var crypto = require('crypto');
 
-app.get("/h", (req, res) => {
-    console.log("In HH "+process.env.KING);
-    res.send(process.env.KING);
+app.get("/d", (req, res) => {
+    console.log("DEPLOY " + process.env.DEPLOY);
+    res.send(process.env.DEPLOY);
 });
 
 
@@ -51,10 +50,7 @@ app.get("/h", (req, res) => {
   });*/
 
 app.post('/generateGraphQL', function (req, res) {
-    if (req.body.protect)
-        res.send("protect generateGraphQL " + req.body.protect);
-    else
-        res.send("not protect generateGraphQL " + req.body.protect);
+    res.send("Coming soon!");
 });
 
 app.get('/download', function (req, res) {
@@ -82,15 +78,15 @@ app.post("/generate", (req, res) => {
                     .set("Authorization", "token " + token)
                     .send({
                         name: appName,
-                        "description": "Created with Blabla",
+                        "description": "Created with Web API Generator",
                         "homepage": config.homepage,
-                        "auto_init": true
+                        "auto_init": true,
+                        "private": true
                     })
                     .catch(err => {
                         console.log("Repo já existe");
                     })
                     .then((re) => {
-                        console.log("KKKKKKKKKKKK " + protect);
 
                         var api = github({
                             username: login,
@@ -108,22 +104,25 @@ app.post("/generate", (req, res) => {
                         }, {
                             path: 'config.js',
                             content: configContent(uri)
+                        }, {
+                            path: 'README.md',
+                            content: readmeContent(appName)
                         }];
 
-                        if (protect) {
-                            let name = "users";
-                            files.push(
-                                {
-                                    path: "api/models/" + name + "Model.js",
-                                    content: modelContent(name)
-                                }, {
-                                    path: "api/controllers/" + name + "Controller.js",
-                                    content: controllerContent(name)
-                                }, {
-                                    path: "api/routes/" + name + "Route.js",
-                                    content: routeContent(name)
-                                });
-                        }
+                        /*  if (protect) {
+                              let name = "users";
+                              files.push(
+                                  {
+                                      path: "api/models/" + name + "Model.js",
+                                      content: modelContent(name)
+                                  }, {
+                                      path: "api/controllers/" + name + "Controller.js",
+                                      content: controllerContent(name)
+                                  }, {
+                                      path: "api/routes/" + name + "Route.js",
+                                      content: routeContent(name)
+                                  });
+                          }*/
 
                         names.forEach(element => {
                             let name = element.name;
@@ -244,6 +243,11 @@ const setContent = function (path, name, content) {
             }
         });
     });
+}
+
+function readmeContent(appName) {
+    return "# " + appName +
+        "\n Adeus";
 }
 
 function configContent(uri) {
@@ -463,7 +467,6 @@ var login = null;
 
 app.get('/callback', (req, res) => { //Validade to token e outras validacoes
     const { appFolderName } = config;
-    console.log("HERE" + appFolderName);
     //res.end();
 
     /* var body = {
