@@ -40,6 +40,7 @@ app.get("/", (req, res) => {
 var crypto = require('crypto');
 
 app.get("/h", (req, res) => {
+    console.log("In HH "+process.env.KING);
     res.send(process.env.KING);
 });
 
