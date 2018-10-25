@@ -12,7 +12,7 @@ var FolderZip = require('folder-zip');
 var base64 = require('file-base64');
 var superagent = require('superagent');
 var github = require('./github');
-var port = port = process.env.PORT || config.port
+
 
 const writeFilePromise = util.promisify(fs.write);
 const zip = new FolderZip();
@@ -28,12 +28,19 @@ app.use(session({
     saveUninitialized: false
 }));
 
-app.listen(port, () => {
-    console.log('Listening on ' + port);
+var server = app.listen(config.port, () => {
+    console.log('Listening on ' + server.address().port);
 });
 
 app.get("/", (req, res) => {
+    console.log("-------------------------> " + process.env.MY_VAR);
     res.render("index", { token: token, name: login, clientId: config.clientId, appName: config.appName, defaultConnectionString: config.defaultConnectionString })
+});
+
+var crypto = require('crypto');
+
+app.get("/h", (req, res) => {
+    res.send(process.env.KING);
 });
 
 
@@ -102,19 +109,36 @@ app.post("/generate", (req, res) => {
                             content: configContent(uri)
                         }];
 
-                        names.forEach(element => {
-                            let name = element.name;
-                            console.log(name);
-                            files.push({
-                                path: "api/models/" + name + "Model.js",
-                                content: modelContent(name)
-                            }, {
+                        if (protect) {
+                            let name = "users";
+                            files.push(
+                                {
+                                    path: "api/models/" + name + "Model.js",
+                                    content: modelContent(name)
+                                }, {
                                     path: "api/controllers/" + name + "Controller.js",
                                     content: controllerContent(name)
                                 }, {
                                     path: "api/routes/" + name + "Route.js",
                                     content: routeContent(name)
-                                })
+                                });
+                        }
+
+                        names.forEach(element => {
+                            let name = element.name;
+                            console.log(name);
+                            files.push(
+                                {
+                                    path: "api/models/" + name + "Model.js",
+                                    content: modelContent(name)
+                                }, {
+                                    path: "api/controllers/" + name + "Controller.js",
+                                    content: controllerContent(name)
+                                }, {
+                                    path: "api/routes/" + name + "Route.js",
+                                    content: routeContent(name)
+                                }
+                            )
                         });
 
                         api.commit(files, 'Initial commit')
@@ -226,21 +250,18 @@ function configContent(uri) {
     let username = user[0];
     let password = user[1];
     console.log(user);
-    return "var config = {};" +
+    return "module.exports = {" +
+        "\n port: process.env.PORT || 3000," +
         "\n" +
-        "\n config.adminUsername = '" + username + "';" +
-        "\n config.adminPassword = '" + password + "';" +
+        "\n /** WARNING: For security reasons put the next 3 properties in environment variables */" +
+        "\n adminUsername: process.env.ADMIN_USERNAME || '" + username + "'," +
+        "\n adminPassword: process.env.ADMIN_PASSWORD || '" + password + "'," +
+        "\n tokenSecretKey: process.env.SECRET_KEY || 'super_secret'," +
         "\n" +
-        "\n config.port = 3000;" +
-        "\n" +
-        "\n config.tokenSecretKey = 'super_secret';" +
-        "\n /** Expressed in seconds or a string describing a time span [zeit/ms](https://github.com/zeit/ms.js).  Eg: 60, '2 days', '10h', '7d' */" +
-        "\n config.tokenExireTime = '1h';" +
-        "\n" +
-        "\n module.exports = config;";
+        "\n /** @property Expressed in seconds or a string describing a time span [zeit/ms](https://github.com/zeit/ms.js).  Eg: 60, '2 days', '10h', '7d' */" +
+        "\n tokenExireTime: '1h'" +
+        "\n }";
 }
-
-
 
 
 
@@ -296,7 +317,6 @@ function serverContent(uri, collections, protect) {
     return "var config = require('./config.js');" +
         "\n var express = require('express')," +
         "\n\t app = express()," +
-        "\n\t port = process.env.PORT || config.port," +
         "\n\t mongoose = require('mongoose')," +
         "\n\t bodyParser = require('body-parser');" +
         "\n" +
@@ -310,8 +330,9 @@ function serverContent(uri, collections, protect) {
         "\n mongoose.Promise = global.Promise;" +
         "\n const connection = mongoose.connect('" + uri + "', { useNewUrlParser: true });" +
         "\n" +
-        "\n app.listen(port);" +
-        "\n console.log('RESTful API server started on: ' + port);" +
+        "\n var server = app.listen(config.port, () => {" +
+        "\n\t console.log('Listening on ' + server.address().port);" +
+        "\n });" +
         "\n" +
         "\n app.use(function (req, res) {" +
         "\n\t res.status(404).send({ url: req.originalUrl + ' not found' })" +
@@ -412,7 +433,7 @@ function modelContent(name) {
 
 function packageContent() {
     return "{" +
-        "\n\t \"name\": \"RESTfulAPI\"," +
+        "\n\t \"name\": \"web-api\"," +
         "\n\t \"version\": \"1.0.0\"," +
         "\n\t \"description\": \"\"," +
         "\n\t \"main\": \"server.js\"," +
@@ -421,7 +442,7 @@ function packageContent() {
         "\n\t\t \"start\": \"node server.js\"" +
         "\n\t }," +
         "\n\t \"keywords\": []," +
-        "\n\t \"author\": \"API Generator by Fernando Sousa a.k.a Elkin\"," +
+        "\n\t \"author\": \"Code generated by Web API Generator at https://web-api-generator.herokuapp.com/\"," +
         "\n\t \"license\": \"\"," +
         "\n\t \"devDependencies\": {" +
         "\n\t\t \"nodemon\": \"^1.18.3\"" +
