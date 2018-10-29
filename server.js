@@ -14,19 +14,15 @@ app.set('view engine', 'ejs')
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(session({ secret: "Shh, its a secret!" }));
 
-/*app.use(session({
-    secret: 'XASDASDA',
-    resave: false,
-    saveUninitialized: false
-}));*/
 
 var server = app.listen(config.port, () => {
     console.log('Listening on ' + server.address().port);
 });
 
 app.get("/", (req, res) => {
-    res.render("index", { token: token, name: login, clientId: config.clientId, appName: config.appName, defaultConnectionString: config.defaultConnectionString })
+    res.render("index", { token: req.session.token, name: req.session.login, clientId: config.clientId, appName: config.appName, defaultConnectionString: config.defaultConnectionString })
 });
 
 var crypto = require('crypto');
@@ -36,6 +32,15 @@ app.get("/d", (req, res) => {
     res.send(process.env.DEPLOY);
 });
 
+app.get('/dd', function(req, res){
+    if(req.session.page_views){
+       req.session.page_views++;
+       res.send("You visited this page " + req.session.page_views + " times");
+    } else {
+       req.session.page_views = 1;
+       res.send("Welcome to this page for the first time!");
+    }
+ });
 
 /*process.on('unhandledRejection', (reason, p) => {
     console.log('XXX Unhandled Rejection at: Promise', p, 'reason:', reason);
@@ -78,7 +83,7 @@ app.post("/generate", (req, res) => {
                     } else {
                         if (names.length > 0) {
                             superagent.post("https://api.github.com/user/repos")
-                                .set("Authorization", "token " + token)
+                                .set("Authorization", "token " + req.session.token)
                                 .send({
                                     name: appName,
                                     "description": "Created with Web API Generator",
@@ -90,8 +95,8 @@ app.post("/generate", (req, res) => {
                                 .then((re) => {
 
                                     var api = github({
-                                        username: login,
-                                        token: token, // created here https://github.com/settings/applications#personal-access-tokens
+                                        username: req.session.login,
+                                        token: req.session.token, // created here https://github.com/settings/applications#personal-access-tokens
                                         reponame: appName
                                     });
 
@@ -158,8 +163,8 @@ app.post("/generate", (req, res) => {
 
                                             var db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true });
                                             db2.then(c2 => {
-                                                c2.db.collection("generates").findOneAndUpdate({ name: login }, { $inc: { 'count': 1 } }, { upsert: true });
-                                                res.redirect("https://github.com/" + login + "/" + appName);
+                                                c2.db.collection("generates").findOneAndUpdate({ name: req.session.login }, { $inc: { 'count': 1 } }, { upsert: true });
+                                                res.redirect("https://github.com/" + req.session.login + "/" + appName);
                                             });
 
                                         }).catch((err) => {
@@ -240,8 +245,8 @@ app.post("/generate", (req, res) => {
 
 const setContentOnRepo = function (path, name, content) {
     return new Promise((resolve, reject) => {
-        superagent.put("https://api.github.com/repos/" + login + "/" + appName + "/contents" + path + name)
-            .set("Authorization", "token " + token)
+        superagent.put("https://api.github.com/repos/" + req.session.login + "/" + appName + "/contents" + path + name)
+            .set("Authorization", "token " + req.session.token)
             .send({
                 "message": "my commit message",
                 "content": Buffer.from(content).toString('base64')
@@ -516,8 +521,8 @@ function packageContent() {
 }
 
 
-var token = null;
-var login = null;
+//var req.session.token = null;
+//var req.session.login = null;
 
 app.get('/callback', (req, res) => { //Validade to token e outras validacoes
     const { appFolderName } = config;
@@ -546,11 +551,11 @@ app.get('/callback', (req, res) => { //Validade to token e outras validacoes
             code: req.query.code
         })
         .then(function (result) {
-            token = result.body.access_token;
+            req.session.token = result.body.access_token;
             superagent.get('https://api.github.com/user')
-                .set("Authorization", "token " + token)
+                .set("Authorization", "token " + req.session.token)
                 .then((r) => {
-                    login = r.body.login;
+                    req.session.login = r.body.login;
                     res.redirect("/");
                 }).catch(err => res.send(err));
             //req.session.token = result.body.access_token;
