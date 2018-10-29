@@ -89,7 +89,7 @@ app.post("/generate", (req, res) => {
                                     "description": "Created with Web API Generator",
                                     "homepage": config.homepage,
                                     "auto_init": true,
-                                    "private": true
+                                   // "private": true
                                 })
 
                                 .then((re) => {
