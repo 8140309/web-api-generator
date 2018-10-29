@@ -14,7 +14,7 @@ app.set('view engine', 'ejs')
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(session({ secret: "Shh, its a secret!" }));
+app.use(session({ secret: config.sessionSecret }));
 
 
 var server = app.listen(config.port, () => {
