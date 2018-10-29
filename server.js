@@ -2,31 +2,24 @@ var config = require('./config.js');
 const express = require('express');
 var bodyParser = require('body-parser');
 var fs = require('fs');
-const fetch = require('node-fetch');
 var session = require('express-session');
-var rimraf = require('rimraf');
 var mongoose = require('mongoose');
 var mkdirp = require('mkdirp');
-const util = require('util');
-var FolderZip = require('folder-zip');
-var base64 = require('file-base64');
 var superagent = require('superagent');
 var github = require('./github');
 
-
-const writeFilePromise = util.promisify(fs.write);
-const zip = new FolderZip();
 const app = express();
 
 app.set('view engine', 'ejs')
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(session({
+
+/*app.use(session({
     secret: 'XASDASDA',
     resave: false,
     saveUninitialized: false
-}));
+}));*/
 
 var server = app.listen(config.port, () => {
     console.log('Listening on ' + server.address().port);
@@ -59,152 +52,186 @@ app.get('/download', function (req, res) {
 
 var appName = null;
 
+
+app.get("/home", (req, res) => {
+    res.render("home");
+});
+
+app.post("/test", (req, res) => {
+    console.log(req.body.name);
+    res.redirect("https://www.google.com");
+});
+
 app.post("/generate", (req, res) => {
+
     var uri = req.body.uri;
     var protect = req.body.protect;
     appName = req.body.appName;
     mongoose.Promise = global.Promise;
-    const connection = mongoose.connect(uri, { useNewUrlParser: true })
-        .catch(err => {
-            res.send("Erro ao conectar ao mongo");
+    var db = mongoose.createConnection(uri, { useNewUrlParser: true })
+        .once("open", () => {
+            console.log("GENERATE " + req.url);
+            db.then(connection => {
+                connection.db.listCollections().toArray(function (err, names) {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        if (names.length > 0) {
+                            superagent.post("https://api.github.com/user/repos")
+                                .set("Authorization", "token " + token)
+                                .send({
+                                    name: appName,
+                                    "description": "Created with Web API Generator",
+                                    "homepage": config.homepage,
+                                    "auto_init": true,
+                                    "private": true
+                                })
+
+                                .then((re) => {
+
+                                    var api = github({
+                                        username: login,
+                                        token: token, // created here https://github.com/settings/applications#personal-access-tokens
+                                        reponame: appName
+                                    });
+
+
+                                    var files = [{
+                                        path: 'package.json',
+                                        content: packageContent()
+                                    }, {
+                                        path: 'server.js',
+                                        content: serverContent(uri, names, protect)
+                                    }, {
+                                        path: 'config.js',
+                                        content: configContent(uri)
+                                    }, {
+                                        path: 'README.md',
+                                        content: readmeContent(appName, protect, names)
+                                    }];
+
+                                    /*  if (protect) {
+                                          let name = "users";
+                                          files.push(
+                                              {
+                                                  path: "api/models/" + name + "Model.js",
+                                                  content: modelContent(name)
+                                              }, {
+                                                  path: "api/controllers/" + name + "Controller.js",
+                                                  content: controllerContent(name)
+                                              }, {
+                                                  path: "api/routes/" + name + "Route.js",
+                                                  content: routeContent(name)
+                                              });
+                                      }*/
+
+                                    names.forEach(element => {
+                                        let name = element.name;
+                                        files.push(
+                                            {
+                                                path: "api/models/" + name + "Model.js",
+                                                content: modelContent(name)
+                                            }, {
+                                                path: "api/controllers/" + name + "Controller.js",
+                                                content: controllerContent(name)
+                                            }, {
+                                                path: "api/routes/" + name + "Route.js",
+                                                content: routeContent(name)
+                                            }
+                                        )
+                                    });
+
+                                    api.commit(files, 'Initial commit')
+                                        .then(r => {
+                                            /*var conn = mongoose.connect("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true })
+                                                .catch(err => {
+                                                    res.send("Error connecting to mongo");
+                                                });
+                                            mongoose.connection.collection('generates').insertOne({ name: "fernando" }).then((x) => {
+                                                console.log(x.insertedId);
+                                                res.redirect("https://github.com/" + login + "/" + appName);
+                                            }).catch(erro => {
+                                                console.log("X " + erro);
+                                                res.send(erro);
+                                            });
+                                            //res.send(r);*/
+
+                                            var db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true });
+                                            db2.then(c2 => {
+                                                c2.db.collection("generates").findOneAndUpdate({ name: login }, { $inc: { 'count': 1 } }, { upsert: true });
+                                                res.redirect("https://github.com/" + login + "/" + appName);
+                                            });
+
+                                        }).catch((err) => {
+                                            res.end("Commit error");
+                                        }); // returns a promise
+
+
+
+                                    /* Promise.all([
+                                         setContentOnRepo("/", "package.json", packageContent()),
+                                         setContentOnRepo("/", "server.js", serverContent(uri, names)),
+                                         setContentOnRepo("/", "package2.json", packageContent()),
+                                         setContentOnRepo("/", "server2.js", serverContent(uri, names)),
+                                         setContentOnRepo("/", "package3.json", packageContent()),
+                                         setContentOnRepo("/", "server3.js", serverContent(uri, names)),
+                                         /*names.map(element => {
+                                             var name = element.name;
+                                             console.log(name);
+             
+                                             return new Promise((resolve, reject) => {
+                                                 setContentOnRepo('/api/models/', name + "Model.js", modelContent(name));
+                                                 setContentOnRepo('/api/controllers/', name + "Controller.js", controllerContent(name));
+                                                 setContentOnRepo('/api/routes/', name + "Route.js", routeContent(name));
+                                                 return resolve("All Saved - " + name);
+                                             });
+                                         })
+                                     ]).then((v) => {
+                                         res.send(v);
+                                     }).catch(err => {
+                                         res.send(err);
+                                     });*/
+
+
+                                }).catch(err => {
+                                    console.log(err);
+                                    res.end("Wrong repository name");
+                                });
+
+                            /*rimraf(config.appFolderName, () => {
+                                Promise.all([
+                                    setContent(config.appFolderName + "/", "package.json", packageContent()),
+                                    setContent(config.appFolderName + "/", "server.js", serverContent(uri, names)),
+                                    names.map(element => {
+                                        var name = element.name;
+                                        return new Promise((resolve, reject) => {
+                                            setContent(config.appFolderName + '/api/models/', name + "Model.js", modelContent(name));
+                                            setContent(config.appFolderName + '/api/controllers/', name + "Controller.js", controllerContent(name));
+                                            setContent(config.appFolderName + '/api/routes/', name + "Route.js", routeContent(name));
+                                            return resolve("All Saved - " + name);
+                                        });
+                                    })
+                                ]).then((v) => {
+                                    console.log(v);
+                                    zip.zipFolder(config.appFolderName, {}, function () {
+                                        zip.writeToFile(config.appFolderName + ".zip", () => {
+                                            res.redirect("/download");
+                                        });
+                                    });
+                                });
+                            });*/
+                        } else {
+                            res.send("The database doesnt exist or has no collection");
+                        }
+                    }
+                });
+            })
+
+
+
+        }).catch(err => {
+            res.end("Error connecting to mongo");
         });
-    mongoose.connection.on('open', function () {
-        mongoose.connection.db.listCollections().toArray(function (err, names) {
-            if (err) {
-                console.log(err);
-            } else {
-
-                superagent.post("https://api.github.com/user/repos")
-                    .set("Authorization", "token " + token)
-                    .send({
-                        name: appName,
-                        "description": "Created with Web API Generator",
-                        "homepage": config.homepage,
-                        "auto_init": true,
-                        "private": true
-                    })
-                    .catch(err => {
-                        console.log("Repo já existe");
-                    })
-                    .then((re) => {
-
-                        var api = github({
-                            username: login,
-                            token: token, // created here https://github.com/settings/applications#personal-access-tokens
-                            reponame: appName
-                        });
-
-
-                        var files = [{
-                            path: 'package.json',
-                            content: packageContent()
-                        }, {
-                            path: 'server.js',
-                            content: serverContent(uri, names, protect)
-                        }, {
-                            path: 'config.js',
-                            content: configContent(uri)
-                        }, {
-                            path: 'README.md',
-                            content: readmeContent(appName)
-                        }];
-
-                        /*  if (protect) {
-                              let name = "users";
-                              files.push(
-                                  {
-                                      path: "api/models/" + name + "Model.js",
-                                      content: modelContent(name)
-                                  }, {
-                                      path: "api/controllers/" + name + "Controller.js",
-                                      content: controllerContent(name)
-                                  }, {
-                                      path: "api/routes/" + name + "Route.js",
-                                      content: routeContent(name)
-                                  });
-                          }*/
-
-                        names.forEach(element => {
-                            let name = element.name;
-                            console.log(name);
-                            files.push(
-                                {
-                                    path: "api/models/" + name + "Model.js",
-                                    content: modelContent(name)
-                                }, {
-                                    path: "api/controllers/" + name + "Controller.js",
-                                    content: controllerContent(name)
-                                }, {
-                                    path: "api/routes/" + name + "Route.js",
-                                    content: routeContent(name)
-                                }
-                            )
-                        });
-
-                        api.commit(files, 'Initial commit')
-                            .then(r => {
-                                token = null;
-                                res.redirect("https://github.com/" + login + "/" + appName);
-                                //res.send(r);
-                            })
-                            .catch((err) => {
-                                res.send("Commit failed");
-                            }); // returns a promise
-
-
-
-                        /* Promise.all([
-                             setContentOnRepo("/", "package.json", packageContent()),
-                             setContentOnRepo("/", "server.js", serverContent(uri, names)),
-                             setContentOnRepo("/", "package2.json", packageContent()),
-                             setContentOnRepo("/", "server2.js", serverContent(uri, names)),
-                             setContentOnRepo("/", "package3.json", packageContent()),
-                             setContentOnRepo("/", "server3.js", serverContent(uri, names)),
-                             /*names.map(element => {
-                                 var name = element.name;
-                                 console.log(name);
- 
-                                 return new Promise((resolve, reject) => {
-                                     setContentOnRepo('/api/models/', name + "Model.js", modelContent(name));
-                                     setContentOnRepo('/api/controllers/', name + "Controller.js", controllerContent(name));
-                                     setContentOnRepo('/api/routes/', name + "Route.js", routeContent(name));
-                                     return resolve("All Saved - " + name);
-                                 });
-                             })
-                         ]).then((v) => {
-                             res.send(v);
-                         }).catch(err => {
-                             res.send(err);
-                         });*/
-
-
-                    });
-
-                /*rimraf(config.appFolderName, () => {
-                    Promise.all([
-                        setContent(config.appFolderName + "/", "package.json", packageContent()),
-                        setContent(config.appFolderName + "/", "server.js", serverContent(uri, names)),
-                        names.map(element => {
-                            var name = element.name;
-                            return new Promise((resolve, reject) => {
-                                setContent(config.appFolderName + '/api/models/', name + "Model.js", modelContent(name));
-                                setContent(config.appFolderName + '/api/controllers/', name + "Controller.js", controllerContent(name));
-                                setContent(config.appFolderName + '/api/routes/', name + "Route.js", routeContent(name));
-                                return resolve("All Saved - " + name);
-                            });
-                        })
-                    ]).then((v) => {
-                        console.log(v);
-                        zip.zipFolder(config.appFolderName, {}, function () {
-                            zip.writeToFile(config.appFolderName + ".zip", () => {
-                                res.redirect("/download");
-                            });
-                        });
-                    });
-                });*/
-            }
-        });
-    });
 
 });
 
@@ -245,9 +272,52 @@ const setContent = function (path, name, content) {
     });
 }
 
-function readmeContent(appName) {
+function readmeContent(appName, protect, names) {
+    var capitalizedNames = names.map(element => {
+        let name = element.name
+        return name.charAt(0).toUpperCase() + name.slice(1);
+    });
     return "# " + appName +
-        "\n Adeus";
+        "\n This is a genererated Web API wich runs on a Node.js server and uses MongoDB data." +
+        "\n" +
+        "\n WARNING: Before proceeding to [Instalation](#Instalation) check the config.js file located in the root of the project." +
+        "\n" +
+        "\n ## Table of Contents" +
+        "\n * [Instalation](#Instalation)" +
+        "\n * [Usage](#Usage)" +
+        (protect ? "\n\t * [Token](#Token)" : "") +
+        capitalizedNames.map(element => "\n\t * [" + element + "](#" + element + ")").join("") +
+        "\n" +
+        "\n ## Instalation" +
+        "\n Install the modules" +
+        "\n ```" +
+        "\n npm install" +
+        "\n ```" +
+        "\n Start the server" +
+        "\n ```" +
+        "\n npm start" +
+        "\n ```" +
+        "\n" +
+        "\n ## Usage" +
+        "\n" +
+        (protect ?
+            "\n #### Token" +
+            "\n Authenticate using the following endpoint with credentials set in [config.js](config.js) file." +
+            "\n ``` " +
+            "\n POST /login " +
+            "\n ```" +
+            "\n You will get a bearer token to use in the Authorization header for API requests." +
+            "\n " : "") +
+        capitalizedNames.map(element =>
+            "\n #### " + element +
+            "\n |HTTP Method|Path | Path Params | Query Params | Body Params |" +
+            "\n |:-------------:|-------------|:-------------:|:-------------:|:-----:|" +
+            "\n |GET| /api/" + element.toLowerCase() + "|None|None|None|" +
+            "\n |GET| /api/" + element.toLowerCase() + "/{id}|Id|None|None|" +
+            "\n |POST| /api/" + element.toLowerCase() + "|None|None|Collection Schema|" +
+            "\n |PUT| /api/" + element.toLowerCase() + "/{id}|Id|None|Collection Schema|" +
+            "\n |DELETE| /api/" + element.toLowerCase() + "/{id}|Id|None|None|"
+        ).join("");
 }
 
 function configContent(uri) {
@@ -415,23 +485,7 @@ function modelContent(name) {
         "\n var mongoose = require('mongoose');" +
         "\n var Schema = mongoose.Schema; " +
         "\n" +
-        "\n var " + name + "Schema = new Schema({" +
-        "\n\t name: {" +
-        "\n\t\t type: String," +
-        "\n\t\t required: 'Please enter the name'" +
-        "\n\t }," +
-        "\n\t Created_date: {" +
-        "\n\t\t type: Date," +
-        "\n\t\tdefault: Date.now" +
-        "\n\t}," +
-        "\n\tstatus: {" +
-        "\n\t\ttype: [{" +
-        "\n\t\t\t type: String," +
-        "\n\t\t\t enum: ['pending', 'ongoing', 'completed']" +
-        "\n\t\t}]," +
-        "\n\t\t default:  ['pending']" +
-        "\n\t}" +
-        "\n}, { strict: false });" +
+        "\n var " + name + "Schema = new Schema({}, { strict: false });" +
         "\n" +
         "\n module.exports = mongoose.model('" + name + "', " + name + "Schema); ";
 }
