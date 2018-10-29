@@ -195,7 +195,7 @@ app.post("/generate", (req, res) => {
 
                                 }).catch(err => {
                                     console.log(err);
-                                    res.end("Wrong repository name");
+                                    res.end("Repository name already exists");
                                 });
 
                             /*rimraf(config.appFolderName, () => {
@@ -280,7 +280,7 @@ function readmeContent(appName, protect, names) {
     return "# " + appName +
         "\n This is a genererated Web API wich runs on a Node.js server and uses MongoDB data." +
         "\n" +
-        "\n WARNING: Before proceeding to [Instalation](#Instalation) check the config.js file located in the root of the project." +
+        "\n WARNING: Before proceeding to [Instalation](#Instalation) check the [config.js](config.js) file located in the root of the project." +
         "\n" +
         "\n ## Table of Contents" +
         "\n * [Instalation](#Instalation)" +
