@@ -237,7 +237,7 @@ app.post("/generate", (req, res) => {
 
         }).catch(err => {
             console.log(err);
-            res.end("Error connecting to mongo");
+            res.end("Error connecting to mongo: try to add 0.0.0.0/0 to IP Whitelist");
         });
 
 });
