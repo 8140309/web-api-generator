@@ -168,6 +168,7 @@ app.post("/generate", (req, res) => {
                                             });
 
                                         }).catch((err) => {
+                                            console.log(err);
                                             res.end("Commit error");
                                         }); // returns a promise
 
@@ -235,6 +236,7 @@ app.post("/generate", (req, res) => {
 
 
         }).catch(err => {
+            console.log(err);
             res.end("Error connecting to mongo");
         });
 
@@ -353,7 +355,7 @@ function serverContent(uri, collections, protect) {
         "\n\t if (username === config.adminUsername && password === config.adminPassword) {" +
         "\n\t\t jwt.sign({ user }, config.tokenSecretKey, { expiresIn: config.tokenExireTime }, (err, token) => {" +
         "\n\t\t\t res.json({" +
-        "\n\t\t\t\t message: 'Authenticated! Use this token in the Authorization header'," +
+        "\n\t\t\t\t message: 'Authenticated! Use this token in the Authorization header', Example: 'Authorization : Bearer cn389ncoiwuencr...'," +
         "\n\t\t\t\t token: token" +
         "\n\t\t\t });" +
         "\n\t\t });" +
