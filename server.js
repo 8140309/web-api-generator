@@ -7,13 +7,15 @@ var mongoose = require('mongoose');
 var mkdirp = require('mkdirp');
 var superagent = require('superagent');
 var github = require('./github');
+var jsonMinify = require('node-json-minify');
+var nodemailer = require('nodemailer');
 
 const app = express();
 
 app.set('view engine', 'ejs')
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.json({ extended: true }));
 app.use(session({ secret: config.sessionSecret }));
 
 
@@ -32,15 +34,15 @@ app.get("/d", (req, res) => {
     res.send(process.env.DEPLOY);
 });
 
-app.get('/dd', function(req, res){
-    if(req.session.page_views){
-       req.session.page_views++;
-       res.send("You visited this page " + req.session.page_views + " times");
+app.get('/dd', function (req, res) {
+    if (req.session.page_views) {
+        req.session.page_views++;
+        res.send("You visited this page " + req.session.page_views + " times");
     } else {
-       req.session.page_views = 1;
-       res.send("Welcome to this page for the first time!");
+        req.session.page_views = 1;
+        res.send("Welcome to this page for the first time!");
     }
- });
+});
 
 /*process.on('unhandledRejection', (reason, p) => {
     console.log('XXX Unhandled Rejection at: Promise', p, 'reason:', reason);
@@ -48,7 +50,49 @@ app.get('/dd', function(req, res){
   });*/
 
 app.post('/generateGraphQL', function (req, res) {
+
+    console.log(JSON.parse(jsonMinify(req.body.schemaJson)).name);
     res.send("Coming soon!");
+});
+
+app.post('/subscribe', function (req, res) {
+    //res.send(req.body.email);
+    //Promise.all().then(_=>)
+
+    const { email } = req.body;
+
+    var transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'web.api.generator@gmail.com',
+            pass: 'stupid-pass'
+        }
+    });
+
+    var mailOptions = {
+        from: 'web.api.generator@gmail.com',
+        to: email,
+        subject: 'Web API Generator Subscription',
+        text: 'This email is just to inform you that your email has been subscripted for updates from https://web-api-generator.herokuapp.com/'
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+
+    db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true })
+        .then(c2 => {
+            c2.db.collection("subscribes").findOneAndUpdate({ email: email }, { $inc: { 'count': 1 } }, { upsert: true })
+                .then(_ => {
+
+                });
+        });
+
+    res.redirect("/");
 });
 
 app.get('/download', function (req, res) {
@@ -89,7 +133,7 @@ app.post("/generate", (req, res) => {
                                     "description": "Created with Web API Generator",
                                     "homepage": config.homepage,
                                     "auto_init": true,
-                                   // "private": true
+                                    // "private": true
                                 })
 
                                 .then((re) => {
@@ -161,11 +205,12 @@ app.post("/generate", (req, res) => {
                                             });
                                             //res.send(r);*/
 
-                                            var db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true });
-                                            db2.then(c2 => {
-                                                c2.db.collection("generates").findOneAndUpdate({ name: req.session.login }, { $inc: { 'count': 1 } }, { upsert: true });
-                                                res.redirect("https://github.com/" + req.session.login + "/" + appName);
-                                            });
+                                            db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true })
+                                                .then(c2 => {
+                                                    c2.db.collection("generates").findOneAndUpdate({ name: req.session.login }, { $inc: { 'count': 1 } }, { upsert: true })
+                                                        .then(_ => res.redirect("https://github.com/" + req.session.login + "/" + appName));
+
+                                                });
 
                                         }).catch((err) => {
                                             console.log(err);
@@ -526,7 +571,11 @@ function packageContent() {
 //var req.session.token = null;
 //var req.session.login = null;
 
+var db2;
+var x = 0;
+
 app.get('/callback', (req, res) => { //Validade to token e outras validacoes
+    x = 10;
     const { appFolderName } = config;
     //res.end();
 
@@ -558,7 +607,11 @@ app.get('/callback', (req, res) => { //Validade to token e outras validacoes
                 .set("Authorization", "token " + req.session.token)
                 .then((r) => {
                     req.session.login = r.body.login;
-                    res.redirect("/");
+                    db2 = mongoose.createConnection("mongodb+srv://fernando:654321aA@cluster0-sejql.gcp.mongodb.net/web-api-generator-stats?retryWrites=true", { useNewUrlParser: true })
+                        .then(c2 => {
+                            c2.db.collection("logins").findOneAndUpdate({ name: req.session.login }, { $inc: { 'count': 1 } }, { upsert: true })
+                                .then(_ => res.redirect("/"));
+                        });
                 }).catch(err => res.send(err));
             //req.session.token = result.body.access_token;
             //res.send(req.session);
@@ -589,7 +642,7 @@ app.get('/callback', (req, res) => { //Validade to token e outras validacoes
                  .catch(err => {
                      res.end("Erro ao criar ficheiro no repo");
                  });
-
+ 
          });
  });*/
 });

@@ -38,6 +38,20 @@
                 <label for="protect">Protect with token</label>
                 <input checked type="checkbox" name="protect">
             </p>
+            <!--   <p>
+                <label for="schema">Schemas (*mandatory for GraphQL API)</label>
+                <input checked type="checkbox" name="schema">
+                <br />
+                <textarea rows="10" cols="100" name="schemaJson">
+//Example
+{
+    "name": {
+        "type": "String",
+        "required": "Please enter the name"
+    }
+}
+                </textarea>
+            </p> -->
             <p>
                 <input type="submit" formaction="generate" value="Generate RESTful API">
                 <input type="submit" formaction="generateGraphQL" value="Generate GraphQL API">
@@ -57,7 +71,7 @@
             Contact: 8140309@estg.ipp.pt
         </p>
         <p>
-            Version 1.3
+            Version 1.3.2
         </p>
     </footer>
 
@@ -71,7 +85,14 @@
         </ul>
         Feel free to suggest features and report bugs.
     </div>
-
+    <br />
+    <div>
+        <form action="subscribe" method="POST">
+            <label for="email">Subscribe for updates</label>
+            <input type="email" name="email" placeholder="youremail@example.com">
+            <input type="submit" value="Subscribe">
+        </form>
+    </div>
     <script src="client.js"></script>
 </body>
 

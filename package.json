@@ -15,6 +15,8 @@
     "mkdirp": "^0.5.1",
     "mongoose": "^5.3.1",
     "node-fetch": "^2.2.0",
+    "node-json-minify": "^1.0.0",
+    "nodemailer": "^4.6.8",
     "octokat": "^0.10.0",
     "rimraf": "^2.6.2",
     "superagent": "^4.0.0-beta.5"
